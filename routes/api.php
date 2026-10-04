@@ -15,6 +15,7 @@ Route::post('pacientes', [PacienteController::class, 'store']);
 
 Route::get('medicos', [MedicoController::class, 'index']);
 Route::get('medicos/{medico}', [MedicoController::class, 'show']);
+Route::get('medicos/{medico}/horarios', [MedicoController::class, 'horarios']);
 Route::get('disponibilidades', [DisponibilidadeController::class, 'index']);
 
 Route::middleware('auth:sanctum')->group(function () {

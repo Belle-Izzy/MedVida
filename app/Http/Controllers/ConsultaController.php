@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Consulta;
 use App\Models\Disponibilidade;
+use App\Models\Medico;
 use App\Models\Paciente;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -38,22 +40,27 @@ class ConsultaController extends Controller
         abort_unless($request->user()->id === (int) $dados['paciente_id'], 403, 'Você só pode agendar consultas para si mesmo.');
 
         $consulta = DB::transaction(function () use ($dados) {
-            $disponibilidade = Disponibilidade::query()
-                ->where('medico_id', $dados['medico_id'])
-                ->whereDate('data', $dados['data'])
-                ->whereTime('horario', $dados['horario'])
-                ->where('disponivel', true)
-                ->lockForUpdate()
-                ->first();
+            $medico = Medico::with('horarios')->findOrFail($dados['medico_id']);
+            $data = Carbon::parse($dados['data']);
+            $horario = Carbon::createFromFormat('H:i', $dados['horario']);
+            $agenda = $medico->horarios->firstWhere('dia_semana', $data->dayOfWeekIso);
 
-            abort_unless($disponibilidade, 409, 'Este horário não está disponível para o médico selecionado.');
+            abort_unless($agenda && $horario->gte(Carbon::parse($agenda->inicio)) && $horario->lt(Carbon::parse($agenda->fim)), 409, 'Este horário não está na agenda do médico.');
+
+            $ocupada = Consulta::query()
+                ->where('medico_id', $medico->id)
+                ->whereDate('data', $data)
+                ->whereTime('horario', $dados['horario'])
+                ->whereIn('status', ['pendente', 'confirmada'])
+                ->lockForUpdate()
+                ->exists();
+
+            abort_if($ocupada, 409, 'Este horário não está mais disponível.');
 
             $consulta = Consulta::create([
                 ...$dados,
                 'status' => 'pendente',
             ]);
-
-            $disponibilidade->update(['disponivel' => false]);
 
             return $consulta;
         });
