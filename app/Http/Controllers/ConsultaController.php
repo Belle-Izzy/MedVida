@@ -117,6 +117,20 @@ class ConsultaController extends Controller
         return response()->json($consulta->fresh()->load(['medico.clinica', 'paciente']));
     }
 
+    public function mensagem(Request $request, Consulta $consulta): JsonResponse
+    {
+        $this->authorizePaciente($request, $consulta);
+        abort_unless($consulta->status === 'confirmada', 422, 'A mensagem só pode ser enviada após a confirmação da consulta.');
+
+        $dados = $request->validate([
+            'mensagem' => ['required', 'string', 'max:300'],
+        ]);
+
+        $consulta->update(['mensagem_pos_confirmacao' => $dados['mensagem']]);
+
+        return response()->json($consulta->fresh());
+    }
+
     public function destroy(Request $request, Consulta $consulta): JsonResponse
     {
         $this->authorizePaciente($request, $consulta);

@@ -89,6 +89,33 @@ function home() {
     if (!session) return access();
     app.innerHTML = shell(`${logoutLink()}<h1 class="screen-title">Olá, ${firstName(session.usuario.nome)}!</h1><p class="subheading">O que você precisa?</p><div class="grid2"><button class="choice teal" data-go="book">🗓️<br>Marcar<br>Consulta</button><button class="choice sky" data-go="consultas">📋<br>Minhas<br>Consultas</button></div><h2 class="subheading">Próxima consulta</h2><div id="next">${message('Você ainda não possui consultas marcadas.')}</div>${bottomNav('home')}`);
     renderConsultations('next', true);
+    checkConfirmed();
+}
+
+async function checkConfirmed() {
+    try {
+        const result = await api('consultas');
+        const consultation = (result.data || result).find(item => item.status === 'confirmada' && !localStorage.getItem(`medvida-confirmada-${item.id}`));
+        if (consultation) confirmationScreen(consultation);
+    } catch (_) {}
+}
+
+function confirmationScreen(consultation) {
+    app.innerHTML = shell(`${logo()}<section class="card confirmation"><div class="confirmation-icon">✅</div><h1 class="screen-title">Consulta Confirmada!</h1><p class="subheading">A clínica aprovou seu agendamento. Você pode enviar uma mensagem para o médico:</p><button class="primary" data-message-consultation="${consultation.id}">Enviar Mensagem ao Médico</button><button class="choice" style="width:100%" data-skip-confirmation="${consultation.id}">Pular por Agora</button></section>`);
+}
+
+function messageDoctor(consultationId) {
+    app.innerHTML = shell(`${logo()}<div class="topline">‹ <span>Mensagem para o Médico</span></div><section class="notice">💬 Envie um resumo do motivo da sua consulta. Isso ajuda o médico a se preparar para o seu atendimento.</section><label>Sua mensagem<textarea id="doctor-message" class="message-box" maxlength="300" placeholder="Ex: Estou sentindo dores no peito há alguns dias, acompanhadas de cansaço. Tenho histórico de hipertensão..."></textarea></label><p class="message-count"><span id="message-count">0</span>/300</p><button class="primary" data-send-message="${consultationId}">Enviar Mensagem</button><p class="center"><button class="link-btn" data-skip-confirmation="${consultationId}">Pular</button></p>${formError()}`);
+    document.querySelector('#doctor-message').oninput = event => { document.querySelector('#message-count').textContent = event.target.value.length; };
+}
+
+async function sendMessage(consultationId) {
+    try {
+        const text = document.querySelector('#doctor-message').value;
+        await api(`consultas/${consultationId}/mensagem`, { method: 'PATCH', body: JSON.stringify({ mensagem: text }) });
+        localStorage.setItem(`medvida-confirmada-${consultationId}`, '1');
+        consultas();
+    } catch (error) { showError(error.message); }
 }
 
 function book() {
@@ -113,7 +140,7 @@ function calendar(doctor) {
         return date;
     }).filter(date => availableWeekdays.has(date.getDay() || 7));
 
-    return dates.length ? `<p class="subheading">Escolha uma data:</p><div class="calendar">${dates.map(date => `<button data-calendar-date="${date.toISOString().slice(0, 10)}" data-doctor-id="${doctor.id}"><span class="calendar-dot"></span>${date.getDate()}/${String(date.getMonth() + 1).padStart(2, '0')}</button>`).join('')}</div>` : '<p class="subheading">Este médico ainda não informou dias de atendimento.</p>';
+    return dates.length ? `<p class="subheading">Escolha uma data:</p><div class="calendar">${dates.map(date => `<button data-calendar-date="${date.toISOString().slice(0, 10)}" data-doctor-id="${doctor.id}">${date.getDate()}/${String(date.getMonth() + 1).padStart(2, '0')}</button>`).join('')}</div>` : '<p class="subheading">Este médico ainda não informou dias de atendimento.</p>';
 }
 
 async function openDate(doctorId, date) {
@@ -144,12 +171,42 @@ async function createBooking() {
 function consultas() { app.innerHTML = shell(`${logoutLink()}<h1 class="screen-title">Minhas Consultas</h1><div id="consultas">${message('Carregando suas consultas...')}</div>${bottomNav('consultas')}`); renderConsultations('consultas'); }
 
 async function renderConsultations(targetId, onlyFirst = false) {
-    try { const result = await api('consultas'); const items = (result.data || result).slice(0, onlyFirst ? 1 : undefined); document.querySelector(`#${targetId}`).innerHTML = items.length ? items.map(consultationCard).join('') : message('Você ainda não possui consultas marcadas.'); } catch (error) { document.querySelector(`#${targetId}`).innerHTML = message(error.message); }
+    try {
+        const result = await api('consultas');
+        const target = document.querySelector(`#${targetId}`);
+        if (!target) return;
+        const items = (result.data || result).slice(0, onlyFirst ? 1 : undefined);
+        target.innerHTML = items.length ? items.map(consultationCard).join('') : message('Você ainda não possui consultas marcadas.');
+    } catch (error) {
+        const target = document.querySelector(`#${targetId}`);
+        if (target) target.innerHTML = message(error.message);
+    }
 }
 
 function consultationCard(item) { return `<section class="appointment"><span class="pill ${item.status === 'pendente' ? 'pending' : ''}">${item.status}</span><h3>${item.medico?.nome || ''}</h3><p class="specialty">${item.medico?.especialidade || ''}</p><p>🗓️ ${item.data} &nbsp; ⏱️ ${String(item.horario).slice(0, 5)}</p></section>`; }
 
-function clinicDashboard() { app.innerHTML = shell(`${logoutLink()}<header class="clinic-header">${clinicName(session.usuario.nome)}<img class="mini-logo" src="/logo-medvida.png" alt="MedVida"></header><div class="clinic-tabs"><button class="active">Agenda</button><button data-go="clinic-medics">Médicos</button></div><div id="clinic-consultas">${message('Ainda não há consultas marcadas nesta clínica.')}</div>`); }
+async function clinicDashboard() {
+    app.innerHTML = shell(`${logoutLink()}<header class="clinic-header">${clinicName(session.usuario.nome)}<img class="mini-logo" src="/logo-medvida.png" alt="MedVida"></header><div class="clinic-tabs"><button class="active">Agenda</button><button data-go="pending">Pendentes (<span id="pending-count">0</span>)</button><button data-go="clinic-medics">Médicos</button></div><div id="clinic-consultas">${message('Carregando agenda...')}</div>`);
+    try {
+        const result = await api('consultas');
+        const consultations = result.data || result;
+        document.querySelector('#pending-count').textContent = consultations.filter(item => item.status === 'pendente').length;
+        document.querySelector('#clinic-consultas').innerHTML = consultations.length ? consultations.map(item => `<section class="appointment"><h3>🧑‍⚕️ ${item.medico?.nome || ''}</h3><p class="specialty">${item.medico?.especialidade || ''}</p><p>🗓️ ${item.data} · ${String(item.horario).slice(0,5)}</p><p>${item.paciente?.nome || 'Paciente'} <span class="pill ${item.status === 'pendente' ? 'pending' : ''}">${item.status}</span></p></section>`).join('') : message('Ainda não há consultas marcadas nesta clínica.');
+    } catch (error) { document.querySelector('#clinic-consultas').innerHTML = message(error.message); }
+}
+
+async function pending() {
+    app.innerHTML = shell(`${logoutLink()}<header class="clinic-header">${clinicName(session.usuario.nome)}<img class="mini-logo" src="/logo-medvida.png" alt="MedVida"></header><div class="clinic-tabs"><button data-go="clinic">Agenda</button><button class="active">Pendentes</button><button data-go="clinic-medics">Médicos</button></div><div id="pending-list">${message('Carregando pendentes...')}</div>`);
+    try {
+        const result = await api('consultas');
+        const consultations = (result.data || result).filter(item => item.status === 'pendente');
+        document.querySelector('#pending-list').innerHTML = consultations.length ? consultations.map(item => `<section class="appointment pending-card"><h3>👤 ${item.paciente?.nome || 'Paciente'}</h3><p class="specialty">${item.paciente?.plano || 'Particular'}</p><div class="pending-info">🩺 ${item.medico?.nome || ''}<br>🗓️ ${item.data} às ${String(item.horario).slice(0,5)}${item.mensagem_paciente ? `<br>💬 "${item.mensagem_paciente}"` : ''}</div><div class="action-row"><button class="confirm" data-confirm="${item.id}">✓ Confirmar</button><button class="refuse" data-refuse="${item.id}">✕ Recusar</button></div></section>`).join('') : message('Não há consultas pendentes.');
+    } catch (error) { document.querySelector('#pending-list').innerHTML = message(error.message); }
+}
+
+async function updateConsultation(id, action) {
+    try { await api(`consultas/${id}/${action}`, { method: 'PATCH' }); clinicDashboard(); } catch (error) { document.querySelector('#pending-list').insertAdjacentHTML('afterbegin', `<p class="error">${error.message}</p>`); }
+}
 
 async function clinicMedics() {
     app.innerHTML = shell(`${logoutLink()}<header class="clinic-header">${clinicName(session.usuario.nome)}<img class="mini-logo" src="/logo-medvida.png" alt="MedVida"></header><div class="clinic-tabs"><button data-go="clinic">Agenda</button><button class="active">Médicos</button></div><div id="medics">${message('Carregando médicos...')}</div><button class="choice add-doctor" data-go="doctor-register">+ Cadastrar novo médico</button>`);

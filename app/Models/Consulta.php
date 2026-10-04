@@ -12,7 +12,7 @@ class Consulta extends Model
 
     protected $fillable = [
         'medico_id', 'paciente_id', 'lugar', 'data', 'horario', 'status',
-        'mensagem_paciente',
+        'mensagem_paciente', 'mensagem_pos_confirmacao',
     ];
 
     protected function casts(): array

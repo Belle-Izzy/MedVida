@@ -91,7 +91,7 @@ input, select {
 
 .password-field { position: relative; display: block; }
 .password-field input { padding-right: 55px; }
-.eye { position: absolute; top: 12px; right: 12px; border: 0; background: transparent; cursor: pointer; }
+.eye { position: absolute; top: 50%; right: 12px; border: 0; background: transparent; cursor: pointer; transform: translateY(-50%); }
 .eye img { display: block; width: 24px; height: 24px; }
 
 .primary {
@@ -152,8 +152,7 @@ input, select {
 .timegrid button { padding: 12px 3px; border: 2px solid #e2e7eb; border-radius: 16px; background: #fff; color: var(--text); }
 
 .calendar { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
-.calendar button { min-width: 0; padding: 10px 4px; border: 1px solid var(--line); border-radius: 14px; background: #fff; color: var(--text); }
-.calendar-dot { display: block; width: 9px; height: 9px; margin: 0 auto 4px; border-radius: 50%; background: var(--teal); }
+.calendar button { min-width: 0; padding: 13px 4px; border: 1px solid var(--line); border-radius: 14px; background: #fff; color: var(--text); text-align: center; }
 .slots-panel { margin-top: 18px; }
 
 .schedule { margin: 24px 0; padding: 14px; border: 1px solid var(--line); border-radius: 18px; }
@@ -173,6 +172,16 @@ input, select {
 .plan strong { text-align: right; font-size: 30px; }
 .plan small { color: #408e95; font-size: 18px; font-weight: normal; }
 .error { padding: 10px; border-radius: 12px; background: #ffecef; color: #b2273a; }
+.pending-card { border: 1px solid #d3ebfa; }
+.pending-info { padding: 12px; border-radius: 15px; background: #f5f8fb; }
+.action-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.action-row button { padding: 13px 6px; border-radius: 13px; font-weight: bold; }
+.confirm { border: 0; background: var(--teal); color: #fff; }
+.refuse { border: 1px solid #ffb8be; background: #fff5f5; color: #f1505c; }
+.confirmation { margin-top: 55px; text-align: center; }
+.confirmation-icon { display: grid; width: 105px; height: 105px; margin: 25px auto; place-items: center; border-radius: 50%; background: #c9faef; font-size: 58px; }
+.message-box { width: 100%; min-height: 180px; padding: 15px; border: 2px solid var(--line); border-radius: 18px; font: inherit; }
+.message-count { text-align: right; color: #8191a4; }
 
 @media (min-width: 700px) { .phone { box-shadow: 0 0 35px #0b41551c; } }
 

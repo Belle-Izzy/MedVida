@@ -30,6 +30,7 @@ Route::middleware(['auth:sanctum', 'tipo:paciente'])->group(function () {
     Route::post('consultas', [ConsultaController::class, 'store']);
     Route::patch('consultas/{consulta}', [ConsultaController::class, 'update']);
     Route::delete('consultas/{consulta}', [ConsultaController::class, 'destroy']);
+    Route::patch('consultas/{consulta}/mensagem', [ConsultaController::class, 'mensagem']);
 });
 
 Route::middleware(['auth:sanctum', 'tipo:clinica'])->group(function () {
