@@ -14,12 +14,23 @@ class Clinica extends Model
 
     protected $fillable = [
         'nome', 'plano_atendido', 'telefone', 'endereco', 'email', 'senha',
+        'status_cadastro', 'ativada_em',
     ];
 
     protected $hidden = ['senha'];
 
+    protected function casts(): array
+    {
+        return ['ativada_em' => 'datetime'];
+    }
+
     public function medicos(): HasMany
     {
         return $this->hasMany(Medico::class);
+    }
+
+    public function pagamentos(): HasMany
+    {
+        return $this->hasMany(PagamentoClinica::class);
     }
 }

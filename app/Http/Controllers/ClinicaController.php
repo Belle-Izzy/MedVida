@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Clinica;
+use App\Models\PagamentoClinica;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 
@@ -17,6 +19,12 @@ class ClinicaController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        if (! config('medvida.simular_pagamento_de_adesao')) {
+            return response()->json([
+                'message' => 'O cadastro de clínicas está aguardando a integração segura do pagamento.',
+            ], 503);
+        }
+
         $data = $request->validate([
             'nome' => ['required', 'string', 'max:255'],
             'plano_atendido' => ['nullable', 'string', 'max:255'],
@@ -24,10 +32,35 @@ class ClinicaController extends Controller
             'endereco' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:clinicas,email'],
             'senha' => ['required', 'string', 'min:8'],
+            'forma_pagamento' => ['required', Rule::in(['pix', 'cartao_credito', 'boleto'])],
         ]);
 
+        $formaPagamento = $data['forma_pagamento'];
+        unset($data['forma_pagamento']);
         $data['senha'] = Hash::make($data['senha']);
-        return response()->json(Clinica::create($data), 201);
+        $data['status_cadastro'] = 'ativa';
+        $data['ativada_em'] = now();
+
+        $clinica = DB::transaction(function () use ($data, $formaPagamento) {
+            $clinica = Clinica::create($data);
+
+            PagamentoClinica::create([
+                'clinica_id' => $clinica->id,
+                'tipo' => 'taxa_adesao',
+                'forma_pagamento' => $formaPagamento,
+                'status' => 'simulado_aprovado',
+                'simulado' => true,
+                'pago_em' => now(),
+            ]);
+
+            return $clinica;
+        });
+
+        return response()->json([
+            'clinica' => $clinica,
+            'message' => 'Cadastro ativado por simulação de pagamento. Nenhuma cobrança foi realizada.',
+            'pagamento_simulado' => true,
+        ], 201);
     }
 
     public function show(Clinica $clinica): JsonResponse
@@ -52,6 +85,7 @@ class ClinicaController extends Controller
             $data['senha'] = Hash::make($data['senha']);
         }
         $clinica->update($data);
+
         return response()->json($clinica->fresh());
     }
 }
