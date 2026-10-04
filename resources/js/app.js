@@ -23,6 +23,11 @@ async function api(path, options = {}) {
     if (session?.token) headers.Authorization = `Bearer ${session.token}`;
     const response = await fetch(`/api/${path}`, { ...options, headers });
     const data = await response.json().catch(() => ({}));
+    if (response.status === 401 && session) {
+        session = null;
+        localStorage.removeItem(sessionKey);
+        access();
+    }
     if (!response.ok) throw new Error(data.message || 'Não foi possível concluir esta ação.');
     return data;
 }
@@ -209,7 +214,7 @@ async function updateConsultation(id, action) {
 }
 
 async function clinicMedics() {
-    app.innerHTML = shell(`${logoutLink()}<header class="clinic-header">${clinicName(session.usuario.nome)}<img class="mini-logo" src="/logo-medvida.png" alt="MedVida"></header><div class="clinic-tabs"><button data-go="clinic">Agenda</button><button class="active">Médicos</button></div><div id="medics">${message('Carregando médicos...')}</div><button class="choice add-doctor" data-go="doctor-register">+ Cadastrar novo médico</button>`);
+    app.innerHTML = shell(`${logoutLink()}<header class="clinic-header">${clinicName(session.usuario.nome)}<img class="mini-logo" src="/logo-medvida.png" alt="MedVida"></header><div class="clinic-tabs"><button data-go="clinic">Agenda</button><button data-go="pending">Pendentes</button><button class="active">Médicos</button></div><div id="medics">${message('Carregando médicos...')}</div><button class="choice add-doctor" data-go="doctor-register">+ Cadastrar novo médico</button>`);
     try { const result = await api('medicos'); clinicDoctors = (result.data || result).filter(doctor => doctor.clinica_id === session.usuario.id); document.querySelector('#medics').innerHTML = clinicDoctors.length ? clinicDoctors.map(doctor => `<section class="appointment"><h3>🧑‍⚕️ ${doctor.nome}</h3><p class="specialty">${doctor.especialidade}</p><button class="link-btn" data-edit-doctor="${doctor.id}">Editar</button></section>`).join('') : message('Ainda não há médicos cadastrados nesta clínica.'); } catch (error) { document.querySelector('#medics').innerHTML = message(error.message); }
 }
 
@@ -252,6 +257,16 @@ document.addEventListener('click', event => {
     }
     if (event.target.closest('[data-action="pay"]')) { activateClinic(); return; }
     if (event.target.closest('[data-action="book"]')) { createBooking(); return; }
+    const confirm = event.target.closest('[data-confirm]')?.dataset.confirm;
+    if (confirm) { updateConsultation(confirm, 'confirmar'); return; }
+    const refuse = event.target.closest('[data-refuse]')?.dataset.refuse;
+    if (refuse) { updateConsultation(refuse, 'recusar'); return; }
+    const consultationToMessage = event.target.closest('[data-message-consultation]')?.dataset.messageConsultation;
+    if (consultationToMessage) { messageDoctor(consultationToMessage); return; }
+    const messageToSend = event.target.closest('[data-send-message]')?.dataset.sendMessage;
+    if (messageToSend) { sendMessage(messageToSend); return; }
+    const skippedConfirmation = event.target.closest('[data-skip-confirmation]')?.dataset.skipConfirmation;
+    if (skippedConfirmation) { localStorage.setItem(`medvida-confirmada-${skippedConfirmation}`, '1'); home(); return; }
     const calendarDate = event.target.closest('[data-calendar-date]');
     if (calendarDate) { openDate(calendarDate.dataset.doctorId, calendarDate.dataset.calendarDate); return; }
     const bookingTime = event.target.closest('[data-book-doctor]');
@@ -261,7 +276,7 @@ document.addEventListener('click', event => {
     const specialty = event.target.closest('[data-specialty]')?.dataset.specialty;
     if (specialty) { doctors(specialty); return; }
     const route = event.target.closest('[data-go]')?.dataset.go;
-    ({ home, book, consultas, clinic: clinicDashboard, 'clinic-medics': clinicMedics, 'doctor-register': doctorRegister, register }[route] || (() => {}))();
+    ({ home, book, consultas, clinic: clinicDashboard, pending, 'clinic-medics': clinicMedics, 'doctor-register': doctorRegister, register }[route] || (() => {}))();
 });
 
 if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
