@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Medico;
+use App\Support\AppointmentSlots;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,7 +14,7 @@ class MedicoController extends Controller
 {
     public function index(): JsonResponse
     {
-        return response()->json(Medico::query()->with(['clinica', 'horarios'])->orderBy('nome')->paginate());
+        return response()->json(Medico::query()->with(['clinica:id,nome,endereco', 'horarios'])->orderBy('nome')->paginate());
     }
 
     public function store(Request $request): JsonResponse
@@ -35,7 +36,7 @@ class MedicoController extends Controller
 
     public function show(Medico $medico): JsonResponse
     {
-        return response()->json($medico->load(['clinica', 'horarios']));
+        return response()->json($medico->load(['clinica:id,nome,endereco', 'horarios']));
     }
 
     public function update(Request $request, Medico $medico): JsonResponse
@@ -73,11 +74,11 @@ class MedicoController extends Controller
             ->map(fn ($item) => Carbon::parse($item)->format('H:i'));
 
         $inicio = Carbon::parse($horario->inicio);
-        $fim = Carbon::parse($horario->fim);
         $horarios = [];
-        while ($inicio->lt($fim)) {
+        while (AppointmentSlots::fitsSchedule($horario->inicio, $horario->fim, $inicio->format('H:i'))) {
             $hora = $inicio->format('H:i');
-            if (! $ocupados->contains($hora)) {
+            if (! $ocupados->contains($hora)
+                && AppointmentSlots::isFuture($data['data'], $hora)) {
                 $horarios[] = $hora;
             }
             $inicio->addHour();

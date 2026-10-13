@@ -1,6 +1,17 @@
 <?php
 
 return [
+    'mercado_pago' => [
+        'access_token' => env('MERCADO_PAGO_ACCESS_TOKEN'),
+        'webhook_secret' => env('MERCADO_PAGO_WEBHOOK_SECRET'),
+        'return_url' => env('MERCADO_PAGO_RETURN_URL'),
+    ],
+    'medvida_push' => [
+        'subject' => env('MEDVIDA_PUSH_SUBJECT'),
+        'public_key' => env('MEDVIDA_PUSH_PUBLIC_KEY'),
+        'private_key' => env('MEDVIDA_PUSH_PRIVATE_KEY'),
+        'allowed_hosts' => array_filter(array_map('trim', explode(',', env('MEDVIDA_PUSH_ALLOWED_HOSTS', 'fcm.googleapis.com,fcm-xm.googleapis.com,updates.push.services.mozilla.com,web.push.apple.com')))),
+    ],
 
     /*
     |--------------------------------------------------------------------------

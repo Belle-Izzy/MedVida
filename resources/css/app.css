@@ -15,7 +15,7 @@ body {
     font: 18px Arial, sans-serif;
 }
 
-button, input, select { font: inherit; }
+button, input, select, textarea { font: inherit; }
 
 .skip-link { position: absolute; left: -999px; }
 
@@ -91,7 +91,7 @@ input, select {
 
 .password-field { position: relative; display: block; }
 .password-field input { padding-right: 55px; }
-.eye { position: absolute; top: 50%; right: 12px; border: 0; background: transparent; cursor: pointer; transform: translateY(-50%); }
+.eye { position: absolute; top: 8px; right: 12px; bottom: 0; display: grid; width: 40px; padding: 0; place-items: center; border: 0; background: transparent; cursor: pointer; }
 .eye img { display: block; width: 24px; height: 24px; }
 
 .primary {
@@ -142,6 +142,8 @@ input, select {
 .navbottom .active { color: #128a9c; }
 
 .appointment h3 { margin: 0 0 6px; font-size: 24px; }
+.appointment-link { display: block; width: 100%; color: inherit; text-align: left; cursor: pointer; }
+.appointment-link:focus-visible, .add-doctor:focus-visible, .cancel-button:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
 .specialty { color: #1491a7; font-size: 21px; }
 .pill { float: right; padding: 8px 14px; border-radius: 20px; background: #c9f8ed; color: #168d88; }
 .pending { background: #e2f2ff; color: #2d95cf; }
@@ -163,19 +165,56 @@ input, select {
 .schedule-row > input { min-height: 40px; margin: 0; padding: 6px; font-size: 14px; }
 
 .notice { padding: 18px; border: 2px solid #d3edff; border-radius: 20px; background: #fff; color: #3b91c3; }
+.notification-control { margin: 22px 0 12px; padding: 15px 18px; border: 1px solid #d6edea; border-radius: 18px; background: #f3fcfa; }
+.notification-control .link-btn { min-height: 44px; padding: 4px 0; color: #138e9f; font-size: 17px; text-align: left; }
+.notification-control .link-btn:disabled { color: #768b98; cursor: default; }
+.notification-control p { margin: 3px 0 0; color: #617986; font-size: 14px; line-height: 1.35; }
 .topline, .clinic-header { display: flex; justify-content: space-between; align-items: center; margin: 12px 0 28px; color: #2287a1; font-size: 29px; }
 .clinic-tabs { display: flex; justify-content: space-around; margin: 0 -24px 24px; border-bottom: 1px solid var(--line); background: #fff; }
 .clinic-tabs button { padding: 17px 4px; border: 0; background: #fff; color: #8191a4; font-size: 18px; }
 .clinic-tabs .active { border-bottom: 3px solid #33d8c4; color: #138e9f; }
+.doctor-list-card { display: flex; align-items: center; gap: 15px; min-height: 110px; }
+.doctor-list-card .avatar { flex: 0 0 62px; }
+.doctor-list-copy { flex: 1; min-width: 0; }
+.doctor-list-copy h3 { font-size: 21px; }
+.doctor-list-copy .specialty { margin: 0; font-size: 18px; }
+.doctor-list-card .link-btn { align-self: flex-end; font-size: 15px; }
+.add-doctor { width: 100%; min-height: 80px; margin-top: 18px; border: 2px dashed #76dfd0; border-radius: 20px; background: transparent; color: #259e9e; font-size: 20px; cursor: pointer; }
+.back-button { width: 48px; height: 48px; border: 0; border-radius: 50%; background: #ecf7ff; color: var(--blue); font-size: 30px; cursor: pointer; }
+.topline:has(.back-button) { justify-content: flex-start; gap: 14px; font-size: 22px; color: var(--text); }
+.page-heading { display: flex; align-items: center; gap: 14px; margin: 14px 0 25px; }
+.page-heading .back-button { flex: 0 0 48px; }
+.page-heading .screen-title { margin: 0; min-width: 0; }
+.detail-status { float: none; display: inline-block; margin-bottom: 8px; font-size: 16px; }
+.details-card { padding: 8px 22px; }
+.detail-row { display: flex; gap: 15px; align-items: flex-start; padding: 19px 0; border-bottom: 1px solid #f1f3f5; }
+.detail-row:last-child { border-bottom: 0; }
+.detail-row > span { width: 30px; font-size: 25px; }
+.detail-row small { display: block; margin-bottom: 5px; color: #8e9dad; font-size: 15px; }
+.detail-row strong { font-size: 19px; font-weight: normal; overflow-wrap: anywhere; }
+.cancel-button { display: block; width: 100%; margin: 26px 0 12px; padding: 20px; border: 2px solid #ffc4c8; border-radius: 20px; background: transparent; color: #ff5b68; font-size: 20px; cursor: pointer; }
+.cancel-confirmation { padding: 15px; border: 1px solid #ffc4c8; border-radius: 18px; background: #fff; text-align: center; }
+.cancel-confirmation .action-row { margin-top: 14px; }
+.deadline-note { color: #7c8996; text-align: center; }
+.cancelled-icon { background: #ffe7e8; color: #f15e67; }
 
 .plan { display: flex; justify-content: space-between; padding: 30px 24px; border: 2px solid #35d2c1; border-radius: 27px; background: #effffc; font-size: 25px; }
 .plan strong { text-align: right; font-size: 30px; }
 .plan small { color: #408e95; font-size: 18px; font-weight: normal; }
 .error { padding: 10px; border-radius: 12px; background: #ffecef; color: #b2273a; }
-.pending-card { border: 1px solid #d3ebfa; }
-.pending-info { padding: 12px; border-radius: 15px; background: #f5f8fb; }
+.pending-card { padding: 18px; border: 1px solid #e5eef1; }
+.pending-person { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.pending-person > div { min-width: 0; }
+.pending-avatar { display: grid; flex: 0 0 52px; width: 52px; height: 52px; place-items: center; border-radius: 50%; background: #ccfaf0; font-size: 26px; }
+.pending-person h3 { margin: 0 0 4px; font-size: 20px; line-height: 1.2; overflow-wrap: anywhere; }
+.pending-person .specialty { margin: 0; font-size: 16px; }
+.pending-info { padding: 14px 16px; border-radius: 15px; background: #f5f8fb; font-size: 16px; line-height: 1.4; }
+.pending-info p { margin: 0; overflow-wrap: anywhere; }
+.pending-info p + p { margin-top: 9px; }
 .action-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .action-row button { padding: 13px 6px; border-radius: 13px; font-weight: bold; }
+.pending-actions { margin-top: 14px; }
+.pending-actions button { min-height: 50px; }
 .confirm { border: 0; background: var(--teal); color: #fff; }
 .refuse { border: 1px solid #ffb8be; background: #fff5f5; color: #f1505c; }
 .confirmation { margin-top: 55px; text-align: center; }

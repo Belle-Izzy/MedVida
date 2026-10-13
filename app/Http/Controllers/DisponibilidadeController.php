@@ -11,26 +11,29 @@ class DisponibilidadeController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = Disponibilidade::with('medico.clinica')
+        $filters = $request->validate([
+            'medico_id' => ['sometimes', 'integer', 'min:1'],
+            'data' => ['sometimes', 'date_format:Y-m-d'],
+            'disponivel' => ['sometimes', 'boolean'],
+        ]);
+
+        $query = Disponibilidade::with(['medico.clinica:id,nome,endereco'])
             ->orderBy('data')
             ->orderBy('horario');
 
-        if ($request->filled('medico_id')) {
-            $query->where('medico_id', $request->integer('medico_id'));
+        if (isset($filters['medico_id'])) {
+            $query->where('medico_id', $filters['medico_id']);
         }
 
-        if ($request->filled('data')) {
-            $query->whereDate('data', $request->input('data'));
+        if (isset($filters['data'])) {
+            $query->whereDate('data', $filters['data']);
         }
 
-        if ($request->filled('disponivel')) {
-            $query->where(
-                'disponivel',
-                filter_var($request->input('disponivel'), FILTER_VALIDATE_BOOLEAN)
-            );
+        if (isset($filters['disponivel'])) {
+            $query->where('disponivel', filter_var($filters['disponivel'], FILTER_VALIDATE_BOOLEAN));
         }
 
-        return response()->json($query->get());
+        return response()->json($query->paginate(20));
     }
 
     public function store(Request $request): JsonResponse
@@ -121,6 +124,7 @@ class DisponibilidadeController extends Controller
     }
 
     public function destroy(
+        Request $request,
         Disponibilidade $disponibilidade
     ): JsonResponse {
         $this->authorizeClinica($request, $disponibilidade->medico_id);

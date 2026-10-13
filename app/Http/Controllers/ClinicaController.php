@@ -3,10 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Clinica;
-use App\Models\PagamentoClinica;
+use App\Services\RegistrationEmail;
+use App\Support\DemoMode;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 
@@ -17,12 +17,10 @@ class ClinicaController extends Controller
         return response()->json(Clinica::query()->orderBy('nome')->paginate());
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(Request $request, RegistrationEmail $mail): JsonResponse
     {
-        if (! config('medvida.simular_pagamento_de_adesao')) {
-            return response()->json([
-                'message' => 'O cadastro de clínicas está aguardando a integração segura do pagamento.',
-            ], 503);
+        if (app()->environment('production') && ! $mail->canDeliver()) {
+            return response()->json(['message' => 'O envio de e-mails ainda não está configurado.'], 503);
         }
 
         $data = $request->validate([
@@ -32,34 +30,23 @@ class ClinicaController extends Controller
             'endereco' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:clinicas,email'],
             'senha' => ['required', 'string', 'min:8'],
-            'forma_pagamento' => ['required', Rule::in(['pix', 'cartao_credito', 'boleto'])],
         ]);
 
-        $formaPagamento = $data['forma_pagamento'];
-        unset($data['forma_pagamento']);
         $data['senha'] = Hash::make($data['senha']);
-        $data['status_cadastro'] = 'ativa';
-        $data['ativada_em'] = now();
-
-        $clinica = DB::transaction(function () use ($data, $formaPagamento) {
-            $clinica = Clinica::create($data);
-
-            PagamentoClinica::create([
-                'clinica_id' => $clinica->id,
-                'tipo' => 'taxa_adesao',
-                'forma_pagamento' => $formaPagamento,
-                'status' => 'simulado_aprovado',
-                'simulado' => true,
-                'pago_em' => now(),
-            ]);
-
-            return $clinica;
-        });
+        $data['status_cadastro'] = 'aguardando_pagamento';
+        $clinica = Clinica::create($data);
+        $prototype = DemoMode::prototype();
+        $emailSent = $prototype ? false : $mail->send($clinica);
 
         return response()->json([
             'clinica' => $clinica,
-            'message' => 'Cadastro ativado por simulação de pagamento. Nenhuma cobrança foi realizada.',
-            'pagamento_simulado' => true,
+            'email_enviado' => $emailSent,
+            'activation_token' => $prototype ? $clinica->createToken('medvida-prototype-activation', ['clinica'])->plainTextToken : null,
+            'message' => $prototype
+                ? 'Conta criada. Conclua a ativação gratuita para entrar.'
+                : ($emailSent
+                ? 'Conta criada. Confirme seu e-mail e depois conclua o pagamento.'
+                : 'Conta criada, mas o e-mail não foi entregue. Configure o envio e solicite um novo link.'),
         ], 201);
     }
 
@@ -84,7 +71,13 @@ class ClinicaController extends Controller
         if (isset($data['senha'])) {
             $data['senha'] = Hash::make($data['senha']);
         }
+        $emailChanged = isset($data['email']) && $data['email'] !== $clinica->email;
+        if ($emailChanged) $data['email_verified_at'] = null;
         $clinica->update($data);
+        if ($emailChanged && ! DemoMode::enabled()) {
+            $clinica->tokens()->delete();
+            $clinica->sendEmailVerificationNotification();
+        }
 
         return response()->json($clinica->fresh());
     }

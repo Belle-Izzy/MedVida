@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Paciente;
+use App\Services\RegistrationEmail;
+use App\Support\DemoMode;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -15,11 +17,26 @@ class PacienteController extends Controller
         return response()->json(Paciente::query()->orderBy('nome')->paginate());
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(Request $request, RegistrationEmail $mail): JsonResponse
     {
+        if (app()->environment('production') && ! $mail->canDeliver()) {
+            return response()->json(['message' => 'O envio de e-mails ainda não está configurado.'], 503);
+        }
+
         $data = $this->validated($request);
         $data['senha'] = Hash::make($data['senha']);
-        return response()->json(Paciente::create($data), 201);
+        $paciente = Paciente::create($data);
+        $testMode = DemoMode::enabled();
+        $emailSent = $testMode ? false : $mail->send($paciente);
+
+        return response()->json([
+            'paciente' => $paciente,
+            'email_enviado' => $emailSent,
+            'message' => $testMode ? 'Conta de teste criada. Você já pode entrar.' : ($emailSent
+                ? 'Conta criada. Confirme seu e-mail antes de entrar.'
+                : 'Conta criada, mas o e-mail não foi entregue. Configure o envio e solicite um novo link.'),
+            'teste_local' => $testMode,
+        ], 201);
     }
 
     public function show(Paciente $paciente): JsonResponse
@@ -35,7 +52,13 @@ class PacienteController extends Controller
         if (isset($data['senha'])) {
             $data['senha'] = Hash::make($data['senha']);
         }
+        $emailChanged = isset($data['email']) && $data['email'] !== $paciente->email;
+        if ($emailChanged) $data['email_verified_at'] = null;
         $paciente->update($data);
+        if ($emailChanged && ! DemoMode::enabled()) {
+            $paciente->tokens()->delete();
+            $paciente->sendEmailVerificationNotification();
+        }
         return response()->json($paciente->fresh());
     }
 

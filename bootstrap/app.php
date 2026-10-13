@@ -13,9 +13,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
         $middleware->alias([
-        'tipo' => \App\Http\Middleware\TipoUsuario::class,
-    ]);
+            'tipo' => \App\Http\Middleware\TipoUsuario::class,
+            'clinica.ativa' => \App\Http\Middleware\ActiveClinic::class,
+            'email.verificado' => \App\Http\Middleware\VerifiedAccountEmail::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

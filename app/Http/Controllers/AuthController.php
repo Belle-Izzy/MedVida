@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Clinica;
 use App\Models\Paciente;
+use App\Models\PushSubscription;
+use App\Support\DemoMode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
@@ -29,6 +31,13 @@ class AuthController extends Controller
             ], 401);
         }
 
+        if (! DemoMode::enabled() && ! $usuario->hasVerifiedEmail()) {
+            return response()->json([
+                'message' => 'Confirme seu e-mail antes de entrar. Você pode solicitar um novo link na tela de login.',
+                'email_verification_required' => true,
+            ], 403);
+        }
+
         $token = $usuario->createToken('medvida', [$dados['tipo']])->plainTextToken;
 
         return response()->json([
@@ -48,6 +57,7 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
+        PushSubscription::where('access_token_id', $request->user()->currentAccessToken()->id)->delete();
         $request->user()->currentAccessToken()->delete();
 
         return response()->json([

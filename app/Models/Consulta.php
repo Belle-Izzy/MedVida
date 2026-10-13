@@ -13,11 +13,12 @@ class Consulta extends Model
     protected $fillable = [
         'medico_id', 'paciente_id', 'lugar', 'data', 'horario', 'status',
         'mensagem_paciente', 'mensagem_pos_confirmacao',
+        'cancelada_por', 'cancelamento_lido_em',
     ];
 
     protected function casts(): array
     {
-        return ['data' => 'date', 'horario' => 'datetime:H:i'];
+        return ['data' => 'date', 'horario' => 'datetime:H:i', 'cancelamento_lido_em' => 'datetime'];
     }
 
     public function medico(): BelongsTo

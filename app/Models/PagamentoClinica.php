@@ -14,7 +14,9 @@ class PagamentoClinica extends Model
 
     protected $fillable = [
         'clinica_id', 'tipo', 'forma_pagamento', 'status', 'simulado',
-        'referencia_provedor', 'pago_em',
+        'referencia_provedor', 'pago_em', 'referencia_externa',
+        'chave_idempotencia', 'valor_centavos', 'moeda', 'checkout_url',
+        'operador_admin', 'motivo_admin', 'acesso_inicio', 'acesso_fim',
     ];
 
     protected function casts(): array
@@ -22,6 +24,8 @@ class PagamentoClinica extends Model
         return [
             'simulado' => 'boolean',
             'pago_em' => 'datetime',
+            'acesso_inicio' => 'datetime',
+            'acesso_fim' => 'datetime',
         ];
     }
 
